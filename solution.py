@@ -38,6 +38,11 @@ def _is_valid_expression(tokens: list[str], columns: pandas.Index) -> bool:
     return operands_ok and operators_ok
 
 
+def _are_numeric(df: pandas.DataFrame, columns: list[str]) -> bool:
+    """Return True if all the given columns contain numbers."""
+    return all(pandas.api.types.is_numeric_dtype(df[column]) for column in columns)
+
+
 def _evaluate(df: pandas.DataFrame, tokens: list[str]) -> pandas.Series:
     """Compute the expression described by the tokens.
 
@@ -76,6 +81,9 @@ def add_virtual_column(df: pandas.DataFrame, role: str, new_column: str) -> pand
         return pandas.DataFrame([])
 
     if not _is_valid_expression(tokens, df.columns):
+        return pandas.DataFrame([])
+
+    if not _are_numeric(df, tokens[::2]):
         return pandas.DataFrame([])
 
     virtual_column = _evaluate(df, tokens)
