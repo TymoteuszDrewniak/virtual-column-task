@@ -4,6 +4,7 @@ import operator
 import pandas
 
 OPERATORS = {"+": operator.add, "-": operator.sub, "*": operator.mul}
+NUMBER_PATTERN = r"[0-9]+(?:\.[0-9]+)?"
 
 
 def _is_valid_label(label: str) -> bool:
@@ -15,32 +16,56 @@ def _is_valid_label(label: str) -> bool:
     return False
 
 
+def _is_number(token: str) -> bool:
+    """Return True if the token is an integer or decimal number such as 2 or 2.5."""
+    if re.fullmatch(NUMBER_PATTERN, token):
+        return True
+    return False
+
+
 def _tokenize(role: str) -> list[str] | None:
-    """Split the role into a list of column names and operators.
+    """Split the role into a list of column names, numbers and operators.
 
     Return None if the role contains a character that is not allowed.
     """
-    tokens = re.findall(r"[a-zA-Z_]+|[+\-*]", role)
+    tokens = re.findall(rf"[a-zA-Z_]+|{NUMBER_PATTERN}|[+\-*]", role)
     if "".join(tokens) != "".join(role.split()):
         return None
     return tokens
 
 
-def _is_valid_expression(tokens: list[str], columns: pandas.Index) -> bool:
-    """Return True if the tokens alternate between operands and operators.
+def _is_operand(token: str, columns: pandas.Index) -> bool:
+    """Return True if the token is an existing column name or a number."""
+    if token in columns or _is_number(token):
+        return True
+    return False
 
-    A valid expression starts and ends with an operand.
+
+def _is_valid_expression(tokens: list[str], columns: pandas.Index) -> bool:
+    """Return True if the tokens form a valid expression.
+
+    Operands and operators must alternate, starting and ending with an operand.
+    An operand is an existing column name or a number, and the expression
+    must use at least one column.
     """
     if len(tokens) % 2 == 0:
         return False
-    operands_ok = all(token in columns for token in tokens[::2])
+    operands_ok = all(_is_operand(token, columns) for token in tokens[::2])
+    has_column = any(token in columns for token in tokens[::2])
     operators_ok = all(token in OPERATORS for token in tokens[1::2])
-    return operands_ok and operators_ok
+    return operands_ok and has_column and operators_ok
 
 
 def _are_numeric(df: pandas.DataFrame, columns: list[str]) -> bool:
     """Return True if all the given columns contain numbers."""
     return all(pandas.api.types.is_numeric_dtype(df[column]) for column in columns)
+
+
+def _operand_value(df: pandas.DataFrame, token: str) -> pandas.Series | int | float:
+    """Return the number or the column that the token stands for."""
+    if _is_number(token):
+        return float(token) if "." in token else int(token)
+    return df[token]
 
 
 def _evaluate(df: pandas.DataFrame, tokens: list[str]) -> pandas.Series:
@@ -51,16 +76,16 @@ def _evaluate(df: pandas.DataFrame, tokens: list[str]) -> pandas.Series:
     """
     total = 0
     pending = "+"
-    term = df[tokens[0]]
+    term = _operand_value(df, tokens[0])
     symbols = tokens[1::2]
     operands = tokens[2::2]
     for symbol, operand in zip(symbols, operands):
         if symbol == "*":
-            term = OPERATORS[symbol](term, df[operand])
+            term = OPERATORS[symbol](term, _operand_value(df, operand))
         else:
             total = OPERATORS[pending](total, term)
             pending = symbol
-            term = df[operand]
+            term = _operand_value(df, operand)
     return OPERATORS[pending](total, term)
 
 
@@ -83,7 +108,8 @@ def add_virtual_column(df: pandas.DataFrame, role: str, new_column: str) -> pand
     if not _is_valid_expression(tokens, df.columns):
         return pandas.DataFrame([])
 
-    if not _are_numeric(df, tokens[::2]):
+    used_columns = [token for token in tokens[::2] if token in df.columns]
+    if not _are_numeric(df, used_columns):
         return pandas.DataFrame([])
 
     virtual_column = _evaluate(df, tokens)
