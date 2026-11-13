@@ -38,6 +38,27 @@ def _is_valid_expression(tokens: list[str], columns: pandas.Index) -> bool:
     return operands_ok and operators_ok
 
 
+def _evaluate(df: pandas.DataFrame, tokens: list[str]) -> pandas.Series:
+    """Compute the expression described by the tokens.
+
+    Multiplication is applied before addition and subtraction.
+    The tokens must already be validated with _is_valid_expression.
+    """
+    total = 0
+    pending = "+"
+    term = df[tokens[0]]
+    symbols = tokens[1::2]
+    operands = tokens[2::2]
+    for symbol, operand in zip(symbols, operands):
+        if symbol == "*":
+            term = OPERATORS[symbol](term, df[operand])
+        else:
+            total = OPERATORS[pending](total, term)
+            pending = symbol
+            term = df[operand]
+    return OPERATORS[pending](total, term)
+
+
 def add_virtual_column(df: pandas.DataFrame, role: str, new_column: str) -> pandas.DataFrame:
     """Return a copy of the DataFrame with a new column computed from the role.
 
@@ -53,4 +74,8 @@ def add_virtual_column(df: pandas.DataFrame, role: str, new_column: str) -> pand
 
     if not _is_valid_expression(tokens, df.columns):
         return pandas.DataFrame([])
-    return pandas.DataFrame([])
+
+    virtual_column = _evaluate(df, tokens)
+    copied_df = df.copy()
+    copied_df[new_column] = virtual_column
+    return copied_df
