@@ -68,6 +68,9 @@ def add_virtual_column(df: pandas.DataFrame, role: str, new_column: str) -> pand
     if not _is_valid_label(new_column) or not all(_is_valid_label(label) for label in df.columns):
         return pandas.DataFrame([])
 
+    if new_column in df.columns:
+        return pandas.DataFrame([])
+
     tokens = _tokenize(role)
     if tokens is None:
         return pandas.DataFrame([])
