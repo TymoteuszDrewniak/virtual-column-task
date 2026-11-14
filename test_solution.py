@@ -160,3 +160,53 @@ def test_boolean_column_in_role_returns_empty_dataframe(role):
     df = pandas.DataFrame({"a": [2, 5], "flag": [True, False]})
     result = add_virtual_column(df, role, "total")
     assert result.shape == (0, 0)
+
+
+def test_input_dataframe_is_not_modified():
+    df = make_df()
+    add_virtual_column(df, "a + b", "total")
+    assert df.equals(make_df())
+
+
+def test_text_column_in_role_returns_empty_dataframe():
+    df = pandas.DataFrame({"a": [2, 5], "name": ["x", "y"]})
+    result = add_virtual_column(df, "a + name", "total")
+    assert result.shape == (0, 0)
+
+
+def test_date_column_in_role_returns_empty_dataframe():
+    df = pandas.DataFrame({"a": [2, 5], "day": pandas.to_datetime(["2024-01-01", "2024-01-02"])})
+    result = add_virtual_column(df, "a + day", "total")
+    assert result.shape == (0, 0)
+
+
+def test_text_column_not_used_in_role_is_ignored():
+    df = pandas.DataFrame({"a": [2, 5], "b": [3, 7], "name": ["x", "y"]})
+    result = add_virtual_column(df, "a + b", "total")
+    assert result["total"].tolist() == [5, 12]
+
+
+def test_decimal_columns_are_computed():
+    df = pandas.DataFrame({"a": [1.5, 2.0], "b": [2.0, 0.5]})
+    result = add_virtual_column(df, "a * b", "total")
+    assert result["total"].tolist() == [3.0, 1.0]
+
+
+def test_missing_value_gives_missing_result():
+    df = pandas.DataFrame({"a": [1.0, None], "b": [2.0, 3.0]})
+    result = add_virtual_column(df, "a + b", "total")
+    assert result["total"].iloc[0] == 3.0
+    assert pandas.isna(result["total"].iloc[1])
+
+
+def test_dataframe_with_no_rows_gets_empty_new_column():
+    df = make_df().head(0)
+    result = add_virtual_column(df, "a + b", "total")
+    assert list(result.columns) == ["a", "b", "c", "total"]
+    assert len(result) == 0
+
+
+def test_row_index_is_kept():
+    df = pandas.DataFrame({"a": [2, 5], "b": [3, 7]}, index=[10, 20])
+    result = add_virtual_column(df, "a + b", "total")
+    assert result.index.tolist() == [10, 20]
