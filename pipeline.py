@@ -43,11 +43,30 @@ def drop_rows_without_order_id(df: pd.DataFrame) -> pd.DataFrame:
     return df[is_order].copy()
 
 
+def drop_duplicate_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """Remove rows that appear more than once.
+
+    Two rows are the same only if all their values are the same.
+    The first one stays and the others are removed.
+    """
+    is_duplicated = df.duplicated(keep="first")
+    duplicated_rows = df[is_duplicated]
+    if not duplicated_rows.empty:
+        logger.warning(
+            "Dropped %d duplicated rows: %s",
+            len(duplicated_rows),
+            list(duplicated_rows["order_id"]),
+        )
+    return df[~is_duplicated].copy()
+
+
+
 def main() -> None:
     """Run the whole pipeline."""
     df = load_sales(INPUT_PATH)
     df = clean_column_names(df)
     df = drop_rows_without_order_id(df)
+    df = drop_duplicate_rows(df)
 
 
 if __name__ == "__main__":
