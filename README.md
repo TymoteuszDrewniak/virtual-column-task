@@ -47,8 +47,8 @@ Dropped rows are logged together with their order_id.
 pytest
 ```
 
-This one command runs all the tests: the 6 provided with the task and 122 of mine
-(92 for Part 1 and 30 for Part 2).
+This one command runs all the tests: the 6 provided with the task and 123 of mine
+(93 for Part 1 and 30 for Part 2).
 
 ## Part 1: `add_virtual_column`
 
