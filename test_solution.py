@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pandas as pd
 import pytest
 
@@ -241,4 +243,10 @@ def test_dataframe_without_rows_and_types_gets_empty_new_column():
 def test_object_column_with_other_values_returns_empty_dataframe(values):
     df = pd.DataFrame({"a": values, "b": [3, 4]}, dtype=object)
     result = add_virtual_column(df, "a + b", "total")
+    assert result.shape == (0, 0)
+
+
+def test_object_column_with_decimal_values_returns_empty_dataframe():
+    df = pd.DataFrame({"a": [Decimal("1.5"), Decimal("2")]})
+    result = add_virtual_column(df, "a * 2.5", "total")
     assert result.shape == (0, 0)

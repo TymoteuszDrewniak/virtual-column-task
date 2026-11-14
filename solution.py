@@ -90,7 +90,7 @@ def _is_numeric_column(column: pd.Series) -> bool:
         return True
     if pd.api.types.is_object_dtype(column):
         return all(
-            isinstance(value, numbers.Number) and not isinstance(value, bool)
+            isinstance(value, numbers.Real) and not isinstance(value, bool)
             for value in column
         )
     return False
