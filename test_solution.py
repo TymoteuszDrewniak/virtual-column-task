@@ -124,3 +124,32 @@ def test_invalid_role_returns_empty_dataframe(role):
 def test_role_that_is_not_a_string_returns_empty_dataframe(role):
     result = add_virtual_column(make_df(), role, "total")
     assert result.shape == (0, 0)
+
+
+@pytest.mark.parametrize("new_column", ["total2", "new col", "new-col", "total!", "", None, 5])
+def test_invalid_new_column_returns_empty_dataframe(new_column):
+    result = add_virtual_column(make_df(), "a + b", new_column)
+    assert result.shape == (0, 0)
+
+
+@pytest.mark.parametrize("new_column", ["total", "Total", "new_total", "_", "__"])
+def test_valid_new_column_is_added(new_column):
+    result = add_virtual_column(make_df(), "a + b", new_column)
+    assert result[new_column].tolist() == [5, 12]
+
+
+def test_new_column_that_already_exists_returns_empty_dataframe():
+    result = add_virtual_column(make_df(), "a + b", "a")
+    assert result.shape == (0, 0)
+
+
+def test_invalid_label_in_dataframe_returns_empty_dataframe():
+    df = pandas.DataFrame({"a": [2, 5], "b": [3, 7], "price2": [4, 1]})
+    result = add_virtual_column(df, "a + b", "total")
+    assert result.shape == (0, 0)
+
+
+def test_dataframe_without_column_names_returns_empty_dataframe():
+    df = pandas.DataFrame([[2, 3], [5, 7]])
+    result = add_virtual_column(df, "a + b", "total")
+    assert result.shape == (0, 0)
