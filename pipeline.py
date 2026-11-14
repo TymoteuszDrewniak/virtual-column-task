@@ -170,6 +170,21 @@ def add_revenue(df: pd.DataFrame) -> pd.DataFrame:
     return with_revenue
 
 
+def sum_revenue_by_region(df: pd.DataFrame) -> pd.DataFrame:
+    """Return the total revenue of each region, sorted by region name.
+
+    The totals are rounded to two decimal places.
+    """
+    totals = df.groupby("region")["revenue"].sum().round(2)
+    return totals.reset_index()
+
+
+def save_result(df: pd.DataFrame, path: str) -> None:
+    """Write the result to a CSV file."""
+    df.to_csv(path, index=False)
+    logger.info("Saved %d rows to %s", len(df), path)
+
+
 def main() -> None:
     """Run the whole pipeline."""
     df = load_sales(INPUT_PATH)
@@ -181,6 +196,8 @@ def main() -> None:
     df = clean_unit_price(df)
     df = clean_discount(df)
     df = add_revenue(df)
+    revenue_by_region = sum_revenue_by_region(df)
+    save_result(revenue_by_region, OUTPUT_PATH)
 
 
 if __name__ == "__main__":
