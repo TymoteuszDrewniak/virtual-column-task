@@ -5,6 +5,7 @@ import pandas as pd
 INPUT_PATH = "sales.csv"
 OUTPUT_PATH = "revenue_by_region.csv"
 ORDER_ID_PATTERN = r"SO-[0-9]{5}"
+QUANTITY_PATTERN = r"-?[0-9]+"
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,34 @@ def clean_region(df: pd.DataFrame) -> pd.DataFrame:
     return cleaned_df
 
 
+def clean_quantity(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy with quantity as integers.
+
+    Spaces used to separate thousands are removed, so "1 762" becomes 1762.
+    Rows where quantity is still not an integer are dropped.
+    Negative quantities are kept and treated as returns.
+    """
+    cleaned_df = df.copy()
+    has_space = cleaned_df["quantity"].str.contains(" ")
+    logger.info("Removed spaces from quantity in %d rows", has_space.sum())
+    cleaned_df["quantity"] = cleaned_df["quantity"].str.replace(" ", "")
+
+    is_number = cleaned_df["quantity"].str.fullmatch(QUANTITY_PATTERN)
+    dropped_rows = cleaned_df[~is_number]
+    if not dropped_rows.empty:
+        logger.warning(
+            "Dropped %d rows with a quantity that is not an integer: %s",
+            len(dropped_rows),
+            list(dropped_rows["order_id"]),
+        )
+    cleaned_df = cleaned_df[is_number].copy()
+    cleaned_df["quantity"] = cleaned_df["quantity"].astype(int)
+
+    negative_count = (cleaned_df["quantity"] < 0).sum()
+    logger.info("Kept %d rows with a negative quantity as returns", negative_count)
+    return cleaned_df
+
+
 def main() -> None:
     """Run the whole pipeline."""
     df = load_sales(INPUT_PATH)
@@ -81,6 +110,7 @@ def main() -> None:
     df = drop_rows_without_order_id(df)
     df = drop_duplicate_rows(df)
     df = clean_region(df)
+    df = clean_quantity(df)
 
 
 if __name__ == "__main__":
