@@ -6,7 +6,7 @@ INPUT_PATH = "sales.csv"
 OUTPUT_PATH = "revenue_by_region.csv"
 ORDER_ID_PATTERN = r"SO-[0-9]{5}"
 QUANTITY_PATTERN = r"-?[0-9]+"
-PRICE_PATTERN = r"[0-9]+(?:\.[0-9]+)?"
+DECIMAL_PATTERN = r"[0-9]+(?:\.[0-9]+)?"
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +119,7 @@ def _product_prices(df: pd.DataFrame) -> pd.Series:
 
     Products with more than one price are skipped.
     """
-    has_price = df["unit_price"].str.fullmatch(PRICE_PATTERN)
+    has_price = df["unit_price"].str.fullmatch(DECIMAL_PATTERN)
     known_rows = df[has_price]
     prices = known_rows["unit_price"].astype(float).groupby(known_rows["product"])
     summary = prices.agg(["first", "nunique"])
@@ -140,7 +140,7 @@ def clean_unit_price(df: pd.DataFrame) -> pd.DataFrame:
 
     is_missing = cleaned_df["unit_price"] == ""
     product_price = cleaned_df["product"].map(_product_prices(cleaned_df))
-    is_number = cleaned_df["unit_price"].str.fullmatch(PRICE_PATTERN)
+    is_number = cleaned_df["unit_price"].str.fullmatch(DECIMAL_PATTERN)
     unit_price = cleaned_df["unit_price"].where(is_number).astype(float)
     unit_price = unit_price.where(~is_missing, product_price)
     filled_count = (is_missing & unit_price.notna()).sum()
@@ -157,6 +157,32 @@ def clean_unit_price(df: pd.DataFrame) -> pd.DataFrame:
     return cleaned_df[unit_price.notna()].copy()
 
 
+def clean_discount(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy with discount as numbers.
+
+    An empty discount means no discount, so it becomes 0.
+    Rows where the discount is still not a number are dropped.
+    """
+    cleaned_df = df.copy()
+    cleaned_df["discount"] = cleaned_df["discount"].str.replace(" ", "").str.replace(",", ".")
+
+    is_empty = cleaned_df["discount"] == ""
+    logger.info("Set the empty discount to 0 in %d rows", is_empty.sum())
+    cleaned_df.loc[is_empty, "discount"] = "0"
+
+    is_number = cleaned_df["discount"].str.fullmatch(DECIMAL_PATTERN)
+    dropped_rows = cleaned_df[~is_number]
+    if not dropped_rows.empty:
+        logger.warning(
+            "Dropped %d rows with a discount that is not a number: %s",
+            len(dropped_rows),
+            list(dropped_rows["order_id"]),
+        )
+    cleaned_df = cleaned_df[is_number].copy()
+    cleaned_df["discount"] = cleaned_df["discount"].astype(float)
+    return cleaned_df
+
+
 def main() -> None:
     """Run the whole pipeline."""
     df = load_sales(INPUT_PATH)
@@ -166,6 +192,7 @@ def main() -> None:
     df = clean_region(df)
     df = clean_quantity(df)
     df = clean_unit_price(df)
+    df = clean_discount(df)
 
 
 if __name__ == "__main__":
