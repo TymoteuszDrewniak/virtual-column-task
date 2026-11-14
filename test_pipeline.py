@@ -9,6 +9,8 @@ from pipeline import (
     clean_unit_price,
     drop_rows_without_order_id,
     clean_quantity,
+    add_revenue,
+    sum_revenue_by_region,
 )
 
 
@@ -208,3 +210,39 @@ def test_row_with_invalid_discount_is_dropped(discount):
     result = clean_discount(df)
 
     assert list(result["order_id"]) == ["SO-10001"]
+
+
+def test_revenue_is_quantity_times_unit_price_minus_discount():
+    df = pd.DataFrame(
+        {
+            "quantity": [2, 10, -1],
+            "unit_price": [29.5, 12.5, 119.0],
+            "discount": [0.0, 25.0, 0.0],
+        }
+    )
+
+    result = add_revenue(df)
+
+    assert list(result["revenue"]) == [59.0, 100.0, -119.0]
+
+
+def test_revenue_raises_error_when_column_is_missing():
+    df = pd.DataFrame({"quantity": [2], "unit_price": [29.5]})
+
+    with pytest.raises(ValueError):
+        add_revenue(df)
+
+
+def test_revenue_is_summed_by_region_and_sorted_by_name():
+    df = pd.DataFrame(
+        {
+            "region": ["South", "North", "South", "East"],
+            "revenue": [10.004, 5.5, 20.003, -3.0],
+        }
+    )
+
+    result = sum_revenue_by_region(df)
+
+    assert list(result.columns) == ["region", "revenue"]
+    assert list(result["region"]) == ["East", "North", "South"]
+    assert list(result["revenue"]) == [-3.0, 5.5, 30.01]
