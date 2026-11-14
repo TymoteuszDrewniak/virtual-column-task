@@ -67,13 +67,23 @@ def clean_region(df: pd.DataFrame) -> pd.DataFrame:
 
     Spaces around the name are removed and only the first letter is a capital,
     so " south" and "SOUTH " both become "South".
+    Rows with an empty region are dropped.
     """
     cleaned_df = df.copy()
     cleaned_region = cleaned_df["region"].str.strip().str.title()
     changed_count = (cleaned_region != cleaned_df["region"]).sum()
     logger.info("Fixed the region name in %d rows", changed_count)
     cleaned_df["region"] = cleaned_region
-    return cleaned_df
+
+    has_region = cleaned_df["region"] != ""
+    dropped_rows = cleaned_df[~has_region]
+    if not dropped_rows.empty:
+        logger.warning(
+            "Dropped %d rows with an empty region: %s",
+            len(dropped_rows),
+            list(dropped_rows["order_id"]),
+        )
+    return cleaned_df[has_region].copy()
 
 
 def clean_quantity(df: pd.DataFrame) -> pd.DataFrame:
