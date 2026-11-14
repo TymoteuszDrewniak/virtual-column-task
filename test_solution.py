@@ -210,3 +210,15 @@ def test_row_index_is_kept():
     df = pandas.DataFrame({"a": [2, 5], "b": [3, 7]}, index=[10, 20])
     result = add_virtual_column(df, "a + b", "total")
     assert result.index.tolist() == [10, 20]
+
+
+def test_duplicate_column_used_in_role_returns_empty_dataframe():
+    df = pandas.DataFrame([[2, 3]], columns=["a", "a"])
+    result = add_virtual_column(df, "a + a", "total")
+    assert result.shape == (0, 0)
+
+
+def test_duplicate_column_not_used_in_role_returns_empty_dataframe():
+    df = pandas.DataFrame([[2, 3, 4]], columns=["a", "b", "b"])
+    result = add_virtual_column(df, "a + a", "total")
+    assert result.shape == (0, 0)
