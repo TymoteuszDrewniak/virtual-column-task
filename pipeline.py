@@ -60,6 +60,19 @@ def drop_duplicate_rows(df: pd.DataFrame) -> pd.DataFrame:
     return df[~is_duplicated].copy()
 
 
+def clean_region(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy with region names written the same way.
+
+    Spaces around the name are removed and only the first letter is a capital,
+    so " south" and "SOUTH " both become "South".
+    """
+    cleaned_df = df.copy()
+    cleaned_region = cleaned_df["region"].str.strip().str.title()
+    changed_count = (cleaned_region != cleaned_df["region"]).sum()
+    logger.info("Fixed the region name in %d rows", changed_count)
+    cleaned_df["region"] = cleaned_region
+    return cleaned_df
+
 
 def main() -> None:
     """Run the whole pipeline."""
@@ -67,6 +80,7 @@ def main() -> None:
     df = clean_column_names(df)
     df = drop_rows_without_order_id(df)
     df = drop_duplicate_rows(df)
+    df = clean_region(df)
 
 
 if __name__ == "__main__":
