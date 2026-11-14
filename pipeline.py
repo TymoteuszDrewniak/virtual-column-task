@@ -4,6 +4,7 @@ import pandas as pd
 
 INPUT_PATH = "sales.csv"
 OUTPUT_PATH = "revenue_by_region.csv"
+ORDER_ID_PATTERN = r"SO-[0-9]{5}"
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +27,27 @@ def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
     return cleaned_df
 
 
+def drop_rows_without_order_id(df: pd.DataFrame) -> pd.DataFrame:
+    """Return only the rows whose order id looks like SO-12345.
+
+    This removes rows that are not orders, such as a repeated header or a totals row.
+    """
+    is_order = df["order_id"].str.fullmatch(ORDER_ID_PATTERN)
+    dropped_rows = df[~is_order]
+    if not dropped_rows.empty:
+        logger.warning(
+            "Dropped %d rows without a valid order id: %s",
+            len(dropped_rows),
+            list(dropped_rows["order_id"]),
+        )
+    return df[is_order].copy()
+
+
 def main() -> None:
     """Run the whole pipeline."""
     df = load_sales(INPUT_PATH)
     df = clean_column_names(df)
+    df = drop_rows_without_order_id(df)
 
 
 if __name__ == "__main__":
