@@ -185,9 +185,9 @@ def save_result(df: pd.DataFrame, path: str) -> None:
     logger.info("Saved %d rows to %s", len(df), path)
 
 
-def main() -> None:
-    """Run the whole pipeline."""
-    df = load_sales(INPUT_PATH)
+def main(input_path: str = INPUT_PATH, output_path: str = OUTPUT_PATH) -> None:
+    """Run the whole pipeline: read the sales file, clean it and save revenue by region."""
+    df = load_sales(input_path)
     df = clean_column_names(df)
     df = drop_rows_without_order_id(df)
     df = drop_duplicate_rows(df)
@@ -197,7 +197,7 @@ def main() -> None:
     df = clean_discount(df)
     df = add_revenue(df)
     revenue_by_region = sum_revenue_by_region(df)
-    save_result(revenue_by_region, OUTPUT_PATH)
+    save_result(revenue_by_region, output_path)
 
 
 if __name__ == "__main__":

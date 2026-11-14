@@ -11,7 +11,18 @@ from pipeline import (
     clean_quantity,
     add_revenue,
     sum_revenue_by_region,
+    main,
 )
+
+RAW_SALES = """Order ID,Region,Product,Quantity ,Unit Price,Discount,Order Date
+SO-10001,North,Mouse,2,29.50,,2026-01-02
+SO-10002, north ,Mouse,1 000,"29,50",50.00,2026-01-03
+SO-10002, north ,Mouse,1 000,"29,50",50.00,2026-01-03
+Order ID,Region,Product,Quantity ,Unit Price,Discount,Order Date
+SO-10003,SOUTH,Mouse,-1,,,2026-01-04
+SO-10004,South,Keyboard,3,89.00,7.00,2026-01-05
+TOTAL,,,2004,,107.00,
+"""
 
 
 def test_column_names_are_lower_case_with_underscores():
@@ -246,3 +257,15 @@ def test_revenue_is_summed_by_region_and_sorted_by_name():
     assert list(result.columns) == ["region", "revenue"]
     assert list(result["region"]) == ["East", "North", "South"]
     assert list(result["revenue"]) == [-3.0, 5.5, 30.01]
+
+
+def test_pipeline_writes_revenue_by_region(tmp_path):
+    input_path = tmp_path / "sales.csv"
+    output_path = tmp_path / "revenue_by_region.csv"
+    input_path.write_text(RAW_SALES)
+
+    main(input_path, output_path)
+
+    result = pd.read_csv(output_path)
+    assert list(result["region"]) == ["North", "South"]
+    assert list(result["revenue"]) == [29509.0, 230.5]
