@@ -71,3 +71,50 @@ def test_whole_number_keeps_integer_column_type():
 def test_role_with_minus_sign(role, expected):
     result = add_virtual_column(make_df(), role, "total")
     assert result["total"].tolist() == expected
+
+
+@pytest.mark.parametrize(
+    "role",
+    [
+        # nothing to compute
+        "",
+        "   ",
+        # missing operand
+        "a +",
+        "a *",
+        "+ a",
+        "* a",
+        "a + + b",
+        "a * * b",
+        "a + * b",
+        # missing operator
+        "a b",
+        # characters and operators that are not supported
+        "a / b",
+        "a ** b",
+        "(a + b) * c",
+        "a & b",
+        # unknown column
+        "a + x",
+        "A + b",
+        # numbers in a form that is not supported
+        "a * .5",
+        "a * 2.",
+        "a * 1e3",
+        "a * 1,5",
+        "a2 + b",
+        "2a + b",
+        # no column at all
+        "2 + 3",
+        "2",
+        # more than one sign, or a plus sign
+        "--a",
+        "a---b",
+        "+a",
+        "a + +b",
+        "-",
+    ],
+)
+def test_invalid_role_returns_empty_dataframe(role):
+    result = add_virtual_column(make_df(), role, "total")
+    assert result.shape == (0, 0)
