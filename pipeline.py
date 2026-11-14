@@ -29,20 +29,26 @@ def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
     return cleaned_df
 
 
+def _drop_rows(df: pd.DataFrame, is_valid: pd.Series, description: str) -> pd.DataFrame:
+    """Return only the rows marked as valid and log the ones that were dropped."""
+    dropped_rows = df[~is_valid]
+    if not dropped_rows.empty:
+        logger.warning(
+            "Dropped %d %s: %s",
+            len(dropped_rows),
+            description,
+            list(dropped_rows["order_id"]),
+        )
+    return df[is_valid].copy()
+
+
 def drop_rows_without_order_id(df: pd.DataFrame) -> pd.DataFrame:
     """Return only the rows whose order id looks like SO-12345.
 
     This removes rows that are not orders, such as a repeated header or a totals row.
     """
     is_order = df["order_id"].str.fullmatch(ORDER_ID_PATTERN)
-    dropped_rows = df[~is_order]
-    if not dropped_rows.empty:
-        logger.warning(
-            "Dropped %d rows without a valid order id: %s",
-            len(dropped_rows),
-            list(dropped_rows["order_id"]),
-        )
-    return df[is_order].copy()
+    return _drop_rows(df, is_order, "rows without a valid order id")
 
 
 def drop_duplicate_rows(df: pd.DataFrame) -> pd.DataFrame:
@@ -52,14 +58,7 @@ def drop_duplicate_rows(df: pd.DataFrame) -> pd.DataFrame:
     The first one stays and the others are removed.
     """
     is_duplicated = df.duplicated(keep="first")
-    duplicated_rows = df[is_duplicated]
-    if not duplicated_rows.empty:
-        logger.warning(
-            "Dropped %d duplicated rows: %s",
-            len(duplicated_rows),
-            list(duplicated_rows["order_id"]),
-        )
-    return df[~is_duplicated].copy()
+    return _drop_rows(df, ~is_duplicated, "duplicated rows")
 
 
 def clean_region(df: pd.DataFrame) -> pd.DataFrame:
@@ -76,14 +75,7 @@ def clean_region(df: pd.DataFrame) -> pd.DataFrame:
     cleaned_df["region"] = cleaned_region
 
     has_region = cleaned_df["region"] != ""
-    dropped_rows = cleaned_df[~has_region]
-    if not dropped_rows.empty:
-        logger.warning(
-            "Dropped %d rows with an empty region: %s",
-            len(dropped_rows),
-            list(dropped_rows["order_id"]),
-        )
-    return cleaned_df[has_region].copy()
+    return _drop_rows(cleaned_df, has_region, "rows with an empty region")
 
 
 def clean_quantity(df: pd.DataFrame) -> pd.DataFrame:
@@ -99,14 +91,7 @@ def clean_quantity(df: pd.DataFrame) -> pd.DataFrame:
     cleaned_df["quantity"] = cleaned_df["quantity"].str.replace(" ", "")
 
     is_number = cleaned_df["quantity"].str.fullmatch(QUANTITY_PATTERN)
-    dropped_rows = cleaned_df[~is_number]
-    if not dropped_rows.empty:
-        logger.warning(
-            "Dropped %d rows with a quantity that is not an integer: %s",
-            len(dropped_rows),
-            list(dropped_rows["order_id"]),
-        )
-    cleaned_df = cleaned_df[is_number].copy()
+    cleaned_df = _drop_rows(cleaned_df, is_number, "rows with a quantity that is not an integer")
     cleaned_df["quantity"] = cleaned_df["quantity"].astype(int)
 
     negative_count = (cleaned_df["quantity"] < 0).sum()
@@ -147,14 +132,7 @@ def clean_unit_price(df: pd.DataFrame) -> pd.DataFrame:
     logger.info("Filled in the missing unit price in %d rows", filled_count)
     cleaned_df["unit_price"] = unit_price
 
-    dropped_rows = cleaned_df[unit_price.isna()]
-    if not dropped_rows.empty:
-        logger.warning(
-            "Dropped %d rows with a unit price that is not a number: %s",
-            len(dropped_rows),
-            list(dropped_rows["order_id"]),
-        )
-    return cleaned_df[unit_price.notna()].copy()
+    return _drop_rows(cleaned_df, unit_price.notna(), "rows with a unit price that is not a number")
 
 
 def clean_discount(df: pd.DataFrame) -> pd.DataFrame:
@@ -171,14 +149,7 @@ def clean_discount(df: pd.DataFrame) -> pd.DataFrame:
     cleaned_df.loc[is_empty, "discount"] = "0"
 
     is_number = cleaned_df["discount"].str.fullmatch(DECIMAL_PATTERN)
-    dropped_rows = cleaned_df[~is_number]
-    if not dropped_rows.empty:
-        logger.warning(
-            "Dropped %d rows with a discount that is not a number: %s",
-            len(dropped_rows),
-            list(dropped_rows["order_id"]),
-        )
-    cleaned_df = cleaned_df[is_number].copy()
+    cleaned_df = _drop_rows(cleaned_df, is_number, "rows with a discount that is not a number")
     cleaned_df["discount"] = cleaned_df["discount"].astype(float)
     return cleaned_df
 
