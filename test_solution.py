@@ -1,12 +1,12 @@
-import pandas
+import pandas as pd
 import pytest
 
 from solution import add_virtual_column
 
 
-def make_df() -> pandas.DataFrame:
+def make_df() -> pd.DataFrame:
     """Return a small DataFrame with three numeric columns."""
-    return pandas.DataFrame({"a": [2, 5], "b": [3, 7], "c": [4, 1]})
+    return pd.DataFrame({"a": [2, 5], "b": [3, 7], "c": [4, 1]})
 
 
 @pytest.mark.parametrize(
@@ -144,20 +144,20 @@ def test_new_column_that_already_exists_returns_empty_dataframe():
 
 
 def test_invalid_label_in_dataframe_returns_empty_dataframe():
-    df = pandas.DataFrame({"a": [2, 5], "b": [3, 7], "price2": [4, 1]})
+    df = pd.DataFrame({"a": [2, 5], "b": [3, 7], "price2": [4, 1]})
     result = add_virtual_column(df, "a + b", "total")
     assert result.shape == (0, 0)
 
 
 def test_dataframe_without_column_names_returns_empty_dataframe():
-    df = pandas.DataFrame([[2, 3], [5, 7]])
+    df = pd.DataFrame([[2, 3], [5, 7]])
     result = add_virtual_column(df, "a + b", "total")
     assert result.shape == (0, 0)
 
 
 @pytest.mark.parametrize("role", ["a + flag", "-flag", "flag * 2"])
 def test_boolean_column_in_role_returns_empty_dataframe(role):
-    df = pandas.DataFrame({"a": [2, 5], "flag": [True, False]})
+    df = pd.DataFrame({"a": [2, 5], "flag": [True, False]})
     result = add_virtual_column(df, role, "total")
     assert result.shape == (0, 0)
 
@@ -169,34 +169,34 @@ def test_input_dataframe_is_not_modified():
 
 
 def test_text_column_in_role_returns_empty_dataframe():
-    df = pandas.DataFrame({"a": [2, 5], "name": ["x", "y"]})
+    df = pd.DataFrame({"a": [2, 5], "name": ["x", "y"]})
     result = add_virtual_column(df, "a + name", "total")
     assert result.shape == (0, 0)
 
 
 def test_date_column_in_role_returns_empty_dataframe():
-    df = pandas.DataFrame({"a": [2, 5], "day": pandas.to_datetime(["2024-01-01", "2024-01-02"])})
+    df = pd.DataFrame({"a": [2, 5], "day": pd.to_datetime(["2024-01-01", "2024-01-02"])})
     result = add_virtual_column(df, "a + day", "total")
     assert result.shape == (0, 0)
 
 
 def test_text_column_not_used_in_role_is_ignored():
-    df = pandas.DataFrame({"a": [2, 5], "b": [3, 7], "name": ["x", "y"]})
+    df = pd.DataFrame({"a": [2, 5], "b": [3, 7], "name": ["x", "y"]})
     result = add_virtual_column(df, "a + b", "total")
     assert result["total"].tolist() == [5, 12]
 
 
 def test_decimal_columns_are_computed():
-    df = pandas.DataFrame({"a": [1.5, 2.0], "b": [2.0, 0.5]})
+    df = pd.DataFrame({"a": [1.5, 2.0], "b": [2.0, 0.5]})
     result = add_virtual_column(df, "a * b", "total")
     assert result["total"].tolist() == [3.0, 1.0]
 
 
 def test_missing_value_gives_missing_result():
-    df = pandas.DataFrame({"a": [1.0, None], "b": [2.0, 3.0]})
+    df = pd.DataFrame({"a": [1.0, None], "b": [2.0, 3.0]})
     result = add_virtual_column(df, "a + b", "total")
     assert result["total"].iloc[0] == 3.0
-    assert pandas.isna(result["total"].iloc[1])
+    assert pd.isna(result["total"].iloc[1])
 
 
 def test_dataframe_with_no_rows_gets_empty_new_column():
@@ -207,18 +207,18 @@ def test_dataframe_with_no_rows_gets_empty_new_column():
 
 
 def test_row_index_is_kept():
-    df = pandas.DataFrame({"a": [2, 5], "b": [3, 7]}, index=[10, 20])
+    df = pd.DataFrame({"a": [2, 5], "b": [3, 7]}, index=[10, 20])
     result = add_virtual_column(df, "a + b", "total")
     assert result.index.tolist() == [10, 20]
 
 
 def test_duplicate_column_used_in_role_returns_empty_dataframe():
-    df = pandas.DataFrame([[2, 3]], columns=["a", "a"])
+    df = pd.DataFrame([[2, 3]], columns=["a", "a"])
     result = add_virtual_column(df, "a + a", "total")
     assert result.shape == (0, 0)
 
 
 def test_duplicate_column_not_used_in_role_returns_empty_dataframe():
-    df = pandas.DataFrame([[2, 3, 4]], columns=["a", "b", "b"])
+    df = pd.DataFrame([[2, 3, 4]], columns=["a", "b", "b"])
     result = add_virtual_column(df, "a + a", "total")
     assert result.shape == (0, 0)

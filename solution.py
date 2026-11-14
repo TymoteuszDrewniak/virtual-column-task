@@ -1,7 +1,7 @@
 import re
 import operator
 
-import pandas
+import pandas as pd
 
 OPERATORS = {"+": operator.add, "-": operator.sub, "*": operator.mul}
 NUMBER_PATTERN = r"[0-9]+(?:\.[0-9]+)?"
@@ -56,13 +56,13 @@ def _merge_signs(tokens: list[str]) -> list[str]:
     return merged
 
 
-def _is_operand(token: str, columns: pandas.Index) -> bool:
+def _is_operand(token: str, columns: pd.Index) -> bool:
     """Return True if the token is a column name or a number, with an optional minus sign."""
     name = token.removeprefix("-")
     return name in columns or _is_number(name)
 
 
-def _is_valid_expression(tokens: list[str], columns: pandas.Index) -> bool:
+def _is_valid_expression(tokens: list[str], columns: pd.Index) -> bool:
     """Return True if the tokens form a valid expression.
 
     Operands and operators must alternate, starting and ending with an operand.
@@ -77,19 +77,19 @@ def _is_valid_expression(tokens: list[str], columns: pandas.Index) -> bool:
     return operands_ok and has_column and operators_ok
 
 
-def _are_numeric(df: pandas.DataFrame, columns: list[str]) -> bool:
+def _are_numeric(df: pd.DataFrame, columns: list[str]) -> bool:
     """Return True if all the given columns contain numbers.
 
     Boolean columns do not count as numbers.
     """
     return all(
-        pandas.api.types.is_numeric_dtype(df[column])
-        and not pandas.api.types.is_bool_dtype(df[column])
+        pd.api.types.is_numeric_dtype(df[column])
+        and not pd.api.types.is_bool_dtype(df[column])
         for column in columns
     )
 
 
-def _operand_value(df: pandas.DataFrame, token: str) -> pandas.Series | int | float:
+def _operand_value(df: pd.DataFrame, token: str) -> pd.Series | int | float:
     """Return the number or the column that the token stands for."""
     if token.startswith("-"):
         return -_operand_value(df, token.removeprefix("-"))
@@ -98,7 +98,7 @@ def _operand_value(df: pandas.DataFrame, token: str) -> pandas.Series | int | fl
     return df[token]
 
 
-def _evaluate(df: pandas.DataFrame, tokens: list[str]) -> pandas.Series:
+def _evaluate(df: pd.DataFrame, tokens: list[str]) -> pd.Series:
     """Compute the expression described by the tokens.
 
     Multiplication is applied before addition and subtraction.
@@ -119,7 +119,7 @@ def _evaluate(df: pandas.DataFrame, tokens: list[str]) -> pandas.Series:
     return OPERATORS[pending](total, term)
 
 
-def add_virtual_column(df: pandas.DataFrame, role: str, new_column: str) -> pandas.DataFrame:
+def add_virtual_column(df: pd.DataFrame, role: str, new_column: str) -> pd.DataFrame:
     """Return a copy of the DataFrame with a new column computed from the role.
 
     The role is an expression of column names and numbers joined by +, - and *,
@@ -130,26 +130,26 @@ def add_virtual_column(df: pandas.DataFrame, role: str, new_column: str) -> pand
     The input DataFrame is never modified.
     """
     if not _is_valid_label(new_column) or not all(_is_valid_label(label) for label in df.columns):
-        return pandas.DataFrame([])
+        return pd.DataFrame([])
 
     if not df.columns.is_unique:
-        return pandas.DataFrame([])
+        return pd.DataFrame([])
 
     if new_column in df.columns:
-        return pandas.DataFrame([])
+        return pd.DataFrame([])
 
     tokens = _tokenize(role)
     if tokens is None:
-        return pandas.DataFrame([])
+        return pd.DataFrame([])
     tokens = _merge_signs(tokens)
 
     if not _is_valid_expression(tokens, df.columns):
-        return pandas.DataFrame([])
+        return pd.DataFrame([])
 
     operand_names = [token.removeprefix("-") for token in tokens[::2]]
     used_columns = [name for name in operand_names if name in df.columns]
     if not _are_numeric(df, used_columns):
-        return pandas.DataFrame([])
+        return pd.DataFrame([])
 
     virtual_column = _evaluate(df, tokens)
     copied_df = df.copy()
