@@ -1,5 +1,6 @@
 import re
 import operator
+import numbers
 
 import pandas as pd
 
@@ -77,16 +78,27 @@ def _is_valid_expression(tokens: list[str], columns: pd.Index) -> bool:
     return operands_ok and has_column and operators_ok
 
 
-def _are_numeric(df: pd.DataFrame, columns: list[str]) -> bool:
-    """Return True if all the given columns contain numbers.
+def _is_numeric_column(column: pd.Series) -> bool:
+    """Return True if the column contains numbers.
 
-    Boolean columns do not count as numbers.
+    Boolean values do not count as numbers.
+    A column of type object counts only if every value in it is a number.
     """
-    return all(
-        pd.api.types.is_numeric_dtype(df[column])
-        and not pd.api.types.is_bool_dtype(df[column])
-        for column in columns
-    )
+    if pd.api.types.is_bool_dtype(column):
+        return False
+    if pd.api.types.is_numeric_dtype(column):
+        return True
+    if pd.api.types.is_object_dtype(column):
+        return all(
+            isinstance(value, numbers.Number) and not isinstance(value, bool)
+            for value in column
+        )
+    return False
+
+
+def _are_numeric(df: pd.DataFrame, columns: list[str]) -> bool:
+    """Return True if all the given columns contain numbers."""
+    return all(_is_numeric_column(df[column]) for column in columns)
 
 
 def _operand_value(df: pd.DataFrame, token: str) -> pd.Series | int | float:

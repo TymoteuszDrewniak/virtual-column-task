@@ -222,3 +222,23 @@ def test_duplicate_column_not_used_in_role_returns_empty_dataframe():
     df = pd.DataFrame([[2, 3, 4]], columns=["a", "b", "b"])
     result = add_virtual_column(df, "a + a", "total")
     assert result.shape == (0, 0)
+
+
+def test_object_column_with_numbers_is_computed():
+    df = pd.DataFrame({"a": [1, 2], "b": [3, 4.5]}, dtype=object)
+    result = add_virtual_column(df, "a + b * 2", "total")
+    assert result["total"].tolist() == [7, 11.0]
+
+
+def test_dataframe_without_rows_and_types_gets_empty_new_column():
+    df = pd.DataFrame(columns=["a", "b"])
+    result = add_virtual_column(df, "a + b", "total")
+    assert list(result.columns) == ["a", "b", "total"]
+    assert len(result) == 0
+
+
+@pytest.mark.parametrize("values", [[1, "x"], ["1", "2"], [True, False], [1, None]])
+def test_object_column_with_other_values_returns_empty_dataframe(values):
+    df = pd.DataFrame({"a": values, "b": [3, 4]}, dtype=object)
+    result = add_virtual_column(df, "a + b", "total")
+    assert result.shape == (0, 0)
