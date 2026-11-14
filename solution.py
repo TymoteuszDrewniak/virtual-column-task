@@ -78,8 +78,15 @@ def _is_valid_expression(tokens: list[str], columns: pandas.Index) -> bool:
 
 
 def _are_numeric(df: pandas.DataFrame, columns: list[str]) -> bool:
-    """Return True if all the given columns contain numbers."""
-    return all(pandas.api.types.is_numeric_dtype(df[column]) for column in columns)
+    """Return True if all the given columns contain numbers.
+
+    Boolean columns do not count as numbers.
+    """
+    return all(
+        pandas.api.types.is_numeric_dtype(df[column])
+        and not pandas.api.types.is_bool_dtype(df[column])
+        for column in columns
+    )
 
 
 def _operand_value(df: pandas.DataFrame, token: str) -> pandas.Series | int | float:

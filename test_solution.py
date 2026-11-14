@@ -153,3 +153,10 @@ def test_dataframe_without_column_names_returns_empty_dataframe():
     df = pandas.DataFrame([[2, 3], [5, 7]])
     result = add_virtual_column(df, "a + b", "total")
     assert result.shape == (0, 0)
+
+
+@pytest.mark.parametrize("role", ["a + flag", "-flag", "flag * 2"])
+def test_boolean_column_in_role_returns_empty_dataframe(role):
+    df = pandas.DataFrame({"a": [2, 5], "flag": [True, False]})
+    result = add_virtual_column(df, role, "total")
+    assert result.shape == (0, 0)
