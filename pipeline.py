@@ -6,6 +6,7 @@ INPUT_PATH = "sales.csv"
 OUTPUT_PATH = "revenue_by_region.csv"
 ORDER_ID_PATTERN = r"SO-[0-9]{5}"
 QUANTITY_PATTERN = r"-?[0-9]+"
+PRICE_PATTERN = r"[0-9]+(?:\.[0-9]+)?"
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +104,49 @@ def clean_quantity(df: pd.DataFrame) -> pd.DataFrame:
     return cleaned_df
 
 
+def _product_prices(df: pd.DataFrame) -> pd.Series:
+    """Return the price of each product that has only one price in the data.
+
+    Products with more than one price are skipped.
+    """
+    has_price = df["unit_price"].str.fullmatch(PRICE_PATTERN)
+    known_rows = df[has_price]
+    prices = known_rows["unit_price"].astype(float).groupby(known_rows["product"])
+    summary = prices.agg(["first", "nunique"])
+    return summary.loc[summary["nunique"] == 1, "first"]
+
+
+def clean_unit_price(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy with unit price as numbers.
+
+    A comma is replaced with a dot, so "39,90" becomes 39.9.
+    An empty price is taken from other rows with the same product.
+    Rows that still have no valid price are dropped.
+    """
+    cleaned_df = df.copy()
+    has_comma = cleaned_df["unit_price"].str.contains(",")
+    logger.info("Replaced the decimal comma in unit price in %d rows", has_comma.sum())
+    cleaned_df["unit_price"] = cleaned_df["unit_price"].str.strip().str.replace(",", ".")
+
+    is_missing = cleaned_df["unit_price"] == ""
+    product_price = cleaned_df["product"].map(_product_prices(cleaned_df))
+    is_number = cleaned_df["unit_price"].str.fullmatch(PRICE_PATTERN)
+    unit_price = cleaned_df["unit_price"].where(is_number).astype(float)
+    unit_price = unit_price.where(~is_missing, product_price)
+    filled_count = (is_missing & unit_price.notna()).sum()
+    logger.info("Filled in the missing unit price in %d rows", filled_count)
+    cleaned_df["unit_price"] = unit_price
+
+    dropped_rows = cleaned_df[unit_price.isna()]
+    if not dropped_rows.empty:
+        logger.warning(
+            "Dropped %d rows with a unit price that is not a number: %s",
+            len(dropped_rows),
+            list(dropped_rows["order_id"]),
+        )
+    return cleaned_df[unit_price.notna()].copy()
+
+
 def main() -> None:
     """Run the whole pipeline."""
     df = load_sales(INPUT_PATH)
@@ -111,6 +155,7 @@ def main() -> None:
     df = drop_duplicate_rows(df)
     df = clean_region(df)
     df = clean_quantity(df)
+    df = clean_unit_price(df)
 
 
 if __name__ == "__main__":
