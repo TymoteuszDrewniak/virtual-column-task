@@ -26,8 +26,10 @@ def _is_number(token: str) -> bool:
 def _tokenize(role: str) -> list[str] | None:
     """Split the role into a list of column names, numbers and operators.
 
-    Return None if the role contains a character that is not allowed.
+    Return None if the role is not a string or contains a character that is not allowed.
     """
+    if not isinstance(role, str):
+        return None
     tokens = re.findall(rf"[a-zA-Z_]+|{NUMBER_PATTERN}|[+\-*]", role)
     if "".join(tokens) != "".join(role.split()):
         return None

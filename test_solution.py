@@ -118,3 +118,9 @@ def test_role_with_minus_sign(role, expected):
 def test_invalid_role_returns_empty_dataframe(role):
     result = add_virtual_column(make_df(), role, "total")
     assert result.shape == (0, 0)
+
+
+@pytest.mark.parametrize("role", [None, 5, ["a"]])
+def test_role_that_is_not_a_string_returns_empty_dataframe(role):
+    result = add_virtual_column(make_df(), role, "total")
+    assert result.shape == (0, 0)
