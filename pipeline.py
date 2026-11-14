@@ -2,6 +2,8 @@ import logging
 
 import pandas as pd
 
+from solution import add_virtual_column
+
 INPUT_PATH = "sales.csv"
 OUTPUT_PATH = "revenue_by_region.csv"
 ORDER_ID_PATTERN = r"SO-[0-9]{5}"
@@ -154,6 +156,20 @@ def clean_discount(df: pd.DataFrame) -> pd.DataFrame:
     return cleaned_df
 
 
+def add_revenue(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy with a revenue column.
+
+    Revenue is quantity times unit price minus discount.
+    Raise ValueError if the column cannot be computed.
+    """
+    role = "quantity * unit_price - discount"
+    with_revenue = add_virtual_column(df, role, "revenue")
+    if "revenue" not in with_revenue.columns:
+        raise ValueError(f"Could not compute revenue from the role: {role}")
+    logger.info("Added revenue for %d rows", len(with_revenue))
+    return with_revenue
+
+
 def main() -> None:
     """Run the whole pipeline."""
     df = load_sales(INPUT_PATH)
@@ -164,6 +180,7 @@ def main() -> None:
     df = clean_quantity(df)
     df = clean_unit_price(df)
     df = clean_discount(df)
+    df = add_revenue(df)
 
 
 if __name__ == "__main__":
